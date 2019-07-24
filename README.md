@@ -1,7 +1,9 @@
 # Autohost
 Shell scripts for quick production deployment of web apps.
 
-## For Django - 
+## For Django -
+
+Before everything, make sure you have a requirements.txt file inside your project's root which contains all your dependencies. You might not be able to install dependencies after hosting.
 
 1. Clone this repository to your local machine/server
 2. Navigate to django-autohost directory and give host.sh executable permissions by `sudo chmod +x ./host.sh`
