@@ -13,13 +13,13 @@ Your project root is the folder which contains the manage.py file. The path to p
 For example, if I had a project named MyProject at 
 /django/MyProject and wanted to host it locally on port 8080, I would use - 
 
-`sudo ./host.sh MyProject /django/MyProject "localhost" "8000"` (Notice the quotation marks over IP address and port)
+`sudo ./host.sh MyProject /django/MyProject "localhost" "8080"` (Notice the quotation marks over IP address and port)
 
 This would store hosting-related info with the identifier "MyProject" (yes, it is necessary to use the same name
-as your django project name). After running that command, you will be able to view your website at localhost:8000. Don't
+as your django project name). After running that command, you will be able to view your website at localhost:8080. Don't
 forget the sudo, this script requires root permissions to place config files in the right directories.
 
-#### Note: If you want to host at localhost, make sure you write "localhost" there and not "127.0.0.1". Nginx will have issues problems if you write 127.0.0.1.
+#### Note: If you want to host at localhost, make sure you write "localhost" there and not "127.0.0.1". Nginx will have issues if you write 127.0.0.1.
 
 #### Note -
 This script will use nginx and gunicorn (with 4 process workers) to host your web app. The script is ONLY for hosting, and not for managing your project.
@@ -31,6 +31,6 @@ will ultimately be reflected on the hosted app.
 
 #### How to "un-host" - 
 To remove your webapp from your server, do the following - 
-1. Navigate to django-autohost directory and give host.sh executable permissions by `sudo chmod +x ./remove.sh`
+1. Navigate to django-autohost directory and give remove.sh executable permissions by `sudo chmod +x ./remove.sh`
 2. Execute `./remove.sh <ProjectName>`, where <ProjectName> is the name of the project that you used earlier when hosting it.
 3. You're done.
