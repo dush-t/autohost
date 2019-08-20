@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 
 # Command line arguments.
@@ -24,7 +24,7 @@ sudo apt-get install python-virtualenv
 python3 -m venv $HOSTING_DATA_DIR/venv
 source $HOSTING_DATA_DIR/venv/bin/activate
 pip install -r $PROJECT_DIR/requirements.txt
-pip install -r gunicorn.sh
+pip install gunicorn
 python $PROJECT_DIR/manage.py collectstatic
 
 rm -rf $GUNICORN_SCRIPT
@@ -59,10 +59,10 @@ RUNDIR=$(dirname $SOCKFILE)
 test -d $RUNDIR || mkdir -p $RUNDIR
 
 exec gunicorn ${DJANGO_WSGI_MODULE}:application \
-  --name $NAME \
-  --workers $NUM_WORKERS \
-  --user $USER \
-  --bind unix:$SOCKFILE
+--name $NAME \
+--workers $NUM_WORKERS \
+--user $USER \
+--bind unix:$SOCKFILE
 EOF
 
 sudo chmod u+x $GUNICORN_SCRIPT
@@ -104,48 +104,48 @@ sudo touch $NGINX_CONF
 sudo cat >> $NGINX_CONF <<EOF
 
 upstream ${PROJECT_NAME}_app_server {
-  server unix:${HOSTING_DATA_DIR}/run/${PROJECT_NAME}.sock fail_timeout=0;
+server unix:${HOSTING_DATA_DIR}/run/${PROJECT_NAME}.sock fail_timeout=0;
 }
 
 server {
 
-  listen $HOST_PORT;
-  server_name $HOST_IP;
+listen $HOST_PORT;
+server_name $HOST_IP;
 
-  client_max_body_size 4G;
+client_max_body_size 4G;
 
-  access_log $HOSTING_DATA_DIR/logs/nginx-access.log;
-  error_log $HOSTING_DATA_DIR/logs/nginx-error.log
+access_log $HOSTING_DATA_DIR/logs/nginx-access.log;
+error_log $HOSTING_DATA_DIR/logs/nginx-error.log
 
-  location /static/ {
-    alias $PROJECT_DIR/static/;
-  }
+location /static/ {
+alias $PROJECT_DIR/static/;
+}
 
-  location /media/ {
-    alias $PROJECT_DIR/media/;
-  }
+location /media/ {
+alias $PROJECT_DIR/media/;
+}
 EOF
 
 cat >> $NGINX_CONF <<\EOF
-  location / {
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header Host $http_host;
+location / {
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header Host $http_host;
 
-    proxy_redirect off;
-    if (!-f $request_filename) {
+proxy_redirect off;
+if (!-f $request_filename) {
 EOF
 
 cat >> $NGINX_CONF <<EOF
-      proxy_pass https://${PROJECT_NAME}_app_server;
-      break;
-    }
-  }
+proxy_pass http://${PROJECT_NAME}_app_server;
+break;
+}
+}
 
-  # Error pages
-  error_page 500 502 503 504 /500.html;
-  location = /500.html {
-    root ${PROJECT_DIR}/static/;
-  }
+# Error pages
+error_page 500 502 503 504 /500.html;
+location = /500.html {
+root ${PROJECT_DIR}/static/;
+}
 }
 
 EOF
