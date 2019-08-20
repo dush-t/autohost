@@ -6,6 +6,9 @@ export PROJECT_DIR=$2 # Path to project.
 export HOST_IP=$3 # Hosting ip
 export HOST_PORT=$4 # Port
 
+
+#-------------------------------------------------------------------SETUP GUNICORN--------------------------------------------------------------------
+
 echo "Setting up gunicorn..."
 GUNICORN_SCRIPT="${PROJECT_DIR}/gunicorn-start.sh"
 
@@ -15,8 +18,6 @@ touch $GUNICORN_SCRIPT
 cat >> $GUNICORN_SCRIPT <<\EOF
 #!/bin/bash
 EOF
-
-#-------------------------------------------------------------------SETUP GUNICORN--------------------------------------------------------------------
 
 cat >> $GUNICORN_SCRIPT <<EOF
 NAME=${PROJECT_NAME}
