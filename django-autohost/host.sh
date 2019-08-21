@@ -36,11 +36,12 @@ DJANGO_WSGI_MODULE=${PROJECT_NAME}.wsgi
 EOF
 
 cat >> "$GUNICORN_SCRIPT" <<\EOF
-echo 'Starting $NAME as `whoami`'
+echo "Starting $NAME as `whoami`"
 EOF
 
 cat >> "$GUNICORN_SCRIPT" <<EOF
 source ${HOSTING_DIR}/venv/bin/activate
+EOF
 
 cat  >> $GUNICORN_SCRIPT <<\EOF
 echo "Starting $NAME as $(whoami)"
@@ -106,57 +107,60 @@ echo "  "
 #--------------------------------------------------------------SETUP NGINX----------------------------------------------------------------
 
 echo "Setting up nginx"
+
+sudo mkdir -p ${HOSTING_DATA_DIR}/logs
+
 NGINX_CONF=/etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf
 
-sudo mkdir -p ${HOSTING_DIR}/logs
+sudo rm -rf $NGINX_CONF
+sudo touch $NGINX_CONF
 
-sudo rm -rf "$NGINX_CONF"
-sudo touch "$NGINX_CONF"
-
-sudo cat >> "$NGINX_CONF" <<EOF
-
+sudo cat >> $NGINX_CONF <<EOF
 upstream ${PROJECT_NAME}_app_server {
-  server unix:${HOSTING_DIR}/run/gunicorn.sock fail_timeout=0;
+server unix:${HOSTING_DATA_DIR}/run/${PROJECT_NAME}.sock fail_timeout=0;
 }
-
 server {
-  listen $HOST_PORT;
-  server_name $HOST_IP;
-
-  client_max_body_size 4G;
-
-  access_log ${HOSTING_DIR}/logs/nginx-access.log;
-  error_log ${HOSTING_DIR}/logs/nginx-error.log;
-
-  location /static/ {
-    alias ${PROJECT_DIR}/static/;
-  }
-
-  location /media/ {
-    alias $PROJECT_DIR/media/;
-  }
-EOF
-
-cat >> /etc/nginx/sites-enabled/"$PROJECT_NAME".nginxconf <<\EOF
-	location / {
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header Host $http_host;
-          proxy_redirect off;
-        if (!-f $request_filename) {
-EOF
-
-cat >> /etc/nginx/sites-enabled/"$PROJECT_NAME".nginxconf <<EOF
-            proxy_pass http://${PROJECT_NAME}_app_server;
-            break;
-        }
-    }
-    # Error pages
-    error_page 500 502 503 504 /500.html;
-    location = /500.html {
-        root ${PROJECT_DIR}/static/;
-    }
+listen $HOST_PORT;
+server_name $HOST_IP;
+client_max_body_size 4G;
+access_log $HOSTING_DATA_DIR/logs/nginx-access.log;
+error_log $HOSTING_DATA_DIR/logs/nginx-error.log;
+location /static/ {
+alias $PROJECT_DIR/static/;
+}
+location /media/ {
+alias $PROJECT_DIR/media/;
 }
 EOF
+
+cat >> $NGINX_CONF <<\EOF
+location / {
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header Host $http_host;
+proxy_redirect off;
+if (!-f $request_filename) {
+EOF
+
+cat >> $NGINX_CONF <<EOF
+proxy_pass http://${PROJECT_NAME}_app_server;
+break;
+}
+}
+# Error pages
+error_page 500 502 503 504 /500.html;
+location = /500.html {
+root ${PROJECT_DIR}/static/;
+}
+}
+EOF
+
+echo "  "
+
+sudo service nginx restart
+sudo service supervisor restart
+
+echo "  "
+echo "Your django project is online on ${HOST_IP}:${HOST_PORT}"
 
 echo "  "
 echo "Finishing up..."
