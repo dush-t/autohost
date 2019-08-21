@@ -123,7 +123,7 @@ server {
   client_max_body_size 4G;
 
   access_log ${HOSTING_DIR}/logs/nginx-access.log;
-  error_log ${HOSTING_DIR}/logs/nginx-error.log
+  error_log ${HOSTING_DIR}/logs/nginx-error.log;
 
   location /static/ {
     alias ${PROJECT_DIR}/static/;
