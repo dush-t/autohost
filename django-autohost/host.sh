@@ -5,7 +5,7 @@ export PROJECT_DIR=$2
 export HOST_IP=$3
 export HOST_PORT=$4
 
-$HOSTING_DIR=/home/autohost/${PROJECT_NAME}_hostingdata
+HOSTING_DIR=/home/autohost/${PROJECT_NAME}_hostingdata
 
 echo "Saving hosting files at: ${HOSTING_DIR}"
 
@@ -46,7 +46,13 @@ echo "Starting $NAME as `whoami`"
 source /srv/${NAME}/venv/bin/activate
 export DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE
 export PYTHONPATH=$DJANGODIR:$PYTHONPATH
-RUNDIR=$(dirname $SOCKFILE)
+EOF
+
+cat >> $GUNICORN_SCRIPT <<EOF
+RUNDIR=${HOSTING_DIR}/run
+EOF
+
+cat >> $GUNICORN_SCRIPT <<\EOF
 test -d $RUNDIR || mkdir -p $RUNDIR
 exec gunicorn ${DJANGO_WSGI_MODULE}:application \
   --name $NAME \
@@ -61,10 +67,10 @@ sudo chmod u+x $GUNICORN_SCRIPT
 echo "Setting up virtual environment..."
 python3 -m venv $HOSTING_DIR/venv
 source $HOSTING_DIR/venv/bin/activate
-pip install -r ${PROJECT_DIR}/requirements.txt
-pip install gunicorn
+pip3 install -r ${PROJECT_DIR}/requirements.txt
+pip3 install gunicorn
 
-python ${PROJECT_DIR}/manage.py collectstatic
+python3 ${PROJECT_DIR}/manage.py collectstatic
 
 deactivate
 
@@ -140,6 +146,7 @@ cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<EOF
         root ${PROJECT_DIR}/static/;
     }
 }
+EOF
 
 echo "  "
 echo "Finishing up..."
