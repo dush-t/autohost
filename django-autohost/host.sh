@@ -11,6 +11,7 @@ echo "Saving hosting files at: ${HOSTING_DIR}"
 
 sudo mkdir -p "$HOSTING_DIR"
 
+sudo chown  "$HOSTING_DIR"
 #-------------------------------------------------------SETUP GUNICORN--------------------------------------------------------------------
 
 echo "Setting up gunicorn..."
@@ -106,6 +107,8 @@ echo "  "
 
 echo "Setting up nginx"
 NGINX_CONF=/etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf
+
+sudo mkdir -p ${HOSTING_DIR}/logs
 
 sudo rm -rf "$NGINX_CONF"
 sudo touch "$NGINX_CONF"
