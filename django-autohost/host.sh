@@ -134,6 +134,13 @@ server {
   }
 EOF
 
+cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<\EOF
+	location / {
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header Host $http_host;
+          proxy_redirect off;
+        if (!-f $request_filename) {
+EOF
 
 cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<EOF
             proxy_pass http://${PROJECT_NAME}_app_server;
