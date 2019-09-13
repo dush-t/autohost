@@ -94,7 +94,7 @@ sudo cat >> "/etc/supervisor/conf.d/${PROJECT_NAME}.conf" <<EOF
 [program:${PROJECT_NAME}]
 command=${GUNICORN_SCRIPT}
 user = root
-stdout_logfile = $HOSTING_DIR/logs/gunicorn-supervisor.log
+stdout_logfile = "${HOSTING_DIR}/logs/gunicorn-supervisor.log"
 redirect_stderror = true
 EOF
 
@@ -103,7 +103,7 @@ sudo supervisorctl update
 
 echo "	"
 echo "Setting up nginx"
-
+echo "Saving nginx configuration at /etc/nginx/sites-available/${PROJECT_NAME}"
 sudo rm -rf /etc/nginx/sites-available/${PROJECT_NAME}
 sudo rm -rf /etc/nginx/sites-enabled/${PROJECT_NAME}
 touch /etc/nginx/sites-available/${PROJECT_NAME}
@@ -153,8 +153,11 @@ cat >> /etc/nginx/sites-available/$PROJECT_NAME <<EOF
 EOF
 
 sudo ln -s /etc/nginx/sites-available/${PROJECT_NAME} /etc/nginx/sites-enabled/
-service restart nginx
-service restart supervisor
+
+sudo nginx -s reload
+sudo nginx -s reopen
+sudo supervisorctl status $PROJECT_NAME
+
 
 echo "Your project is up and running at ${HOST_IP}:${HOST_PORT}"
 
