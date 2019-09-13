@@ -1,9 +1,13 @@
 export PROJECT_NAME=$1
 
-echo "Removing all traces of your website..."
+echo "Unhosting your website..."
 
-sudo rm -rf /srv/$PROJECT_NAME
-sudo rm -rf /etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf
-sudo rm -rf /etc/supervisor/conf.d/${PROJECT_NAME}.conf
+echo "Removing hosting files..."
+sudo rm -rf "/autohost/${PROJECT_NAME}_hostingdata"
+echo "Removing nginx configurations..."
+sudo rm -rf "/etc/nginx/sites-enabled/${PROJECT_NAME}"
+sudo rm -rf "/etc/nginx/sites-available/${PROJECT_NAME}"
+echo "Removing supervisor program..."
+sudo rm -rf "/etc/supervisor/conf.d/${PROJECT_NAME}.conf"
 
 echo "Done"
