@@ -3,7 +3,7 @@
 export PROJECT_NAME=$1
 export PROJECT_DIR=$2
 export HOST_IP=$3
-export HOST_ADDRESS=$4
+export HOST_PORT=$4
 
 echo "Running autohost on ${PROJECT_NAME}..."
 
@@ -31,6 +31,7 @@ EOF
 cat >> $GUNICORN_SCRIPT <<EOF
 NAME="${PROJECT_NAME}"
 SOCKFILE="${HOSTING_DIR}/run/gunicorn.sock"
+DJANGODIR=${PROJECT_DIR}
 USER=root
 GROUP=webapps
 NUM_WORKERS=4
@@ -52,7 +53,7 @@ export PYTHONPATH=$DJANGODIR:$PYTHONPATH
 EOF
 
 cat >> $GUNICORN_SCRIPT <<EOF
-mkdir -p ${GUNICORN_SCRIPT} <<EOF
+mkdir "${HOSTING_DIR}/run"
 
 EOF
 
@@ -60,8 +61,8 @@ cat >> $GUNICORN_SCRIPT <<\EOF
 exec gunicorn ${DJANGO_WSGI_MODULE}:application \
 	--name $NAME \
 	--workers $NUM_WORKERS \
-	--user=$USER --group=$GROUP \
-	--bind=unix:$SOCKFILE 
+	--user=$USER \
+	--bind unix:$SOCKFILE 
 EOF
 
 sudo chmod u+x $GUNICORN_SCRIPT
@@ -88,9 +89,10 @@ echo "	"
 echo "Setting up supervisor"
 echo "${PROJECT_NAME}.conf"
 
+sudo rm -rf "/etc/supervisor/conf.d/${PROJECT_NAME}.conf"
 sudo cat >> "/etc/supervisor/conf.d/${PROJECT_NAME}.conf" <<EOF
 [program:${PROJECT_NAME}]
-command = ${HOSTING_DIR}/gunicorn-start.sh
+command=${GUNICORN_SCRIPT}
 user = root
 stdout_logfile = $HOSTING_DIR/logs/gunicorn-supervisor.log
 redirect_stderror = true
@@ -102,10 +104,11 @@ sudo supervisorctl update
 echo "	"
 echo "Setting up nginx"
 
-sudo rm -rf /etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf
-touch /etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf
+sudo rm -rf /etc/nginx/sites-available/${PROJECT_NAME}
+sudo rm -rf /etc/nginx/sites-enabled/${PROJECT_NAME}
+touch /etc/nginx/sites-available/${PROJECT_NAME}
 
-sudo cat >> /etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf <<EOF
+sudo cat >> /etc/nginx/sites-available/${PROJECT_NAME} <<EOF
 upstream ${PROJECT_NAME}_app_server {
 	server unix:${HOSTING_DIR}/run/gunicorn.sock fail_timeout=0;
 }
@@ -128,7 +131,7 @@ server {
 		alias	$PROJECT_DIR/media;
 	}
 EOF
-cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<\EOF
+cat >> /etc/nginx/sites-available/$PROJECT_NAME <<\EOF
 	location / {
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header Host $http_host;
@@ -136,7 +139,7 @@ cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<\EOF
         if (!-f $request_filename) {
 EOF
 
-cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<EOF
+cat >> /etc/nginx/sites-available/$PROJECT_NAME <<EOF
             proxy_pass http://${PROJECT_NAME}_app_server;
             break;
         }
@@ -149,8 +152,9 @@ cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<EOF
 }
 EOF
 
-sudo service restart nginx
-sudo service restart supervisor
+sudo ln -s /etc/nginx/sites-available/${PROJECT_NAME} /etc/nginx/sites-enabled/
+service restart nginx
+service restart supervisor
 
 echo "Your project is up and running at ${HOST_IP}:${HOST_PORT}"
 
