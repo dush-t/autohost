@@ -14,9 +14,9 @@ echo "Saving hosting data in ${HOSTING_DIR}"
 sudo rm -rf $HOSTING_DIR
 sudo mkdir -p $HOSTING_DIR
 sudo mkdir "${HOSTING_DIR}/logs"
-sudo touch $HOSTING_DIR/logs/gunicorn-supervisor.log
-sudo touch $HOSTING_DIR/logs/nginx-access.log
-sudo touch $HOSTING_DIR/logs/nginx-error.log
+sudo touch "$HOSTING_DIR/logs/gunicorn-supervisor.log"
+sudo touch "$HOSTING_DIR/logs/nginx-access.log"
+sudo touch "$HOSTING_DIR/logs/nginx-error.log"
 
 #------
 echo "Setting up Gunicorn..."
@@ -49,16 +49,19 @@ EOF
 cat >> $GUNICORN_SCRIPT <<\EOF
 export DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE
 export PYTHONPATH=$DJANGODIR:$PYTHONPATH
+EOF
 
-RUNDIR="${HOSTING_DIR}/run"
-mkdir -p $RUNDIR
+cat >> $GUNICORN_SCRIPT <<EOF
+mkdir -p ${GUNICORN_SCRIPT} <<EOF
 
+EOF
+
+cat >> $GUNICORN_SCRIPT <<\EOF
 exec gunicorn ${DJANGO_WSGI_MODULE}:application \
-	--name $NAME
-	--workers $NUM_WORKERS
-	--user=$USER --group=$GROUP
-	--bind=unix:$SOCKFILE
-
+	--name $NAME \
+	--workers $NUM_WORKERS \
+	--user=$USER --group=$GROUP \
+	--bind=unix:$SOCKFILE 
 EOF
 
 sudo chmod u+x $GUNICORN_SCRIPT
@@ -109,8 +112,8 @@ upstream ${PROJECT_NAME}_app_server {
 
 
 server {
-	listen $HOST_PORT;
-	server_name $HOST_IP;
+	listen ${HOST_PORT};
+	server_name ${HOST_IP};
 	
 	client_max_body_size 4G;
 	
