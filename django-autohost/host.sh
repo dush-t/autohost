@@ -5,157 +5,161 @@ export PROJECT_DIR=$2
 export HOST_IP=$3
 export HOST_PORT=$4
 
-sudo mkdir /srv/$PROJECT_NAME
-sudo mkdir /srv/$PROJECT_NAME/run
-sudo mkdir /srv/$PROJECT_NAME/logs
-sudo touch /srv/$PROJECT_NAME/logs/gunicorn-supervisor.log
-sudo touch /srv/$PROJECT_NAME/logs/nginx-access.log
-sudo touch /srv/$PROJECT_NAME/logs/nginx-error.log
+echo "Running autohost on ${PROJECT_NAME}..."
 
-sudo cp -r $PROJECT_DIR /srv/$PROJECT_NAME
+#------
+HOSTING_DIR="/autohost/${PROJECT_NAME}_hostingdata"
+echo "Saving hosting data in ${HOSTING_DIR}"
 
-#-------------------------------------------------------------------SETUP GUNICORN--------------------------------------------------------------------
+sudo rm -rf $HOSTING_DIR
+sudo mkdir -p $HOSTING_DIR
+sudo mkdir "${HOSTING_DIR}/logs"
+sudo touch "$HOSTING_DIR/logs/gunicorn-supervisor.log"
+sudo touch "$HOSTING_DIR/logs/nginx-access.log"
+sudo touch "$HOSTING_DIR/logs/nginx-error.log"
 
-echo "Setting up gunicorn..."
+#------
+echo "Setting up Gunicorn..."
+GUNICORN_SCRIPT="${HOSTING_DIR}/gunicorn-start.sh"
 
-touch /srv/${PROJECT_NAME}/gunicorn-start.sh
+sudo touch $GUNICORN_SCRIPT
 
-cat >> /srv/${PROJECT_NAME}/gunicorn-start.sh <<\EOF
+cat >> $GUNICORN_SCRIPT <<\EOF
 #!/bin/bash
 EOF
 
-cat >> /srv/${PROJECT_NAME}/gunicorn-start.sh <<EOF
+cat >> $GUNICORN_SCRIPT <<EOF
 NAME="${PROJECT_NAME}"
-DJANGODIR=/srv/${PROJECT_NAME}/${PROJECT_NAME}
-SOCKFILE=/srv/${PROJECT_NAME}/run/gunicorn.sock
+SOCKFILE="${HOSTING_DIR}/run/gunicorn.sock"
+DJANGODIR=${PROJECT_DIR}
 USER=root
-GROUP=webdata
+GROUP=webapps
 NUM_WORKERS=4
 DJANGO_SETTINGS_MODULE=${PROJECT_NAME}.settings
 DJANGO_WSGI_MODULE=${PROJECT_NAME}.wsgi
 EOF
 
-cat >> /srv/${PROJECT_NAME}/gunicorn-start.sh <<\EOF
-echo "Starting $NAME as `whoami`"
-source /srv/${NAME}/venv/bin/activate
+cat >> $GUNICORN_SCRIPT <<\EOF
+echo "Starting ${NAME} as root"
+EOF
+
+cat >> $GUNICORN_SCRIPT <<EOF
+source "${HOSTING_DIR}/venv/bin/activate"
+EOF
+
+cat >> $GUNICORN_SCRIPT <<\EOF
 export DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE
 export PYTHONPATH=$DJANGODIR:$PYTHONPATH
+EOF
 
-RUNDIR=$(dirname $SOCKFILE)
-test -d $RUNDIR || mkdir -p $RUNDIR
-
-exec gunicorn ${DJANGO_WSGI_MODULE}:application \
-  --name $NAME \
-  --workers $NUM_WORKERS \
-  --user $USER \
-  --bind=unix:$SOCKFILE
+cat >> $GUNICORN_SCRIPT <<EOF
+mkdir "${HOSTING_DIR}/run"
 
 EOF
 
-sudo chmod u+x /srv/$PROJECT_NAME/gunicorn-start.sh
+cat >> $GUNICORN_SCRIPT <<\EOF
+exec gunicorn ${DJANGO_WSGI_MODULE}:application \
+	--name $NAME \
+	--workers $NUM_WORKERS \
+	--user=$USER \
+	--bind unix:$SOCKFILE 
+EOF
+
+sudo chmod u+x $GUNICORN_SCRIPT
 
 
+#------
+python3 -m venv "${HOSTING_DIR}/venv"
+source "${HOSTING_DIR}/venv/bin/activate"
 
-#---------------------------------------------------------------SETUP PROJECT ENVIRONMENT--------------------------------------------------------------
-
-# cd /srv/$PROJECT_NAME
-python3 -m venv /srv/$PROJECT_NAME/venv
-source /srv/$PROJECT_NAME/venv/bin/activate
-pip install -r /srv/$PROJECT_NAME/$PROJECT_NAME/requirements.txt
+pip install -r "${PROJECT_DIR}/requirements.txt"
 pip install gunicorn
+pip install setproctitle
 
-python $PROJECT_NAME/manage.py collectstatic
+python "${PROJECT_DIR}/manage.py" collectstatic
 
 deactivate
 
-
-#--------------------------------------------------------------SETUP SERVER-------------------------------------------------------------------------
-
-echo "installing dependencies..."
+#-----
+echo "Installing dependencies"
 sudo apt-get install nginx
 sudo apt-get install supervisor
-echo "  "
 
+echo "	"
 echo "Setting up supervisor"
-echo $PROJECT_NAME.conf
+echo "${PROJECT_NAME}.conf"
 
-sudo rm -rf /etc/supervisor/conf.d/$PROJECT_NAME.conf
-touch /etc/supervisor/conf.d/$PROJECT_NAME.conf
-
-sudo cat >> /etc/supervisor/conf.d/$PROJECT_NAME.conf <<EOF
-[program:$PROJECT_NAME]
-command = /srv/$PROJECT_NAME/gunicorn-start.sh
+sudo rm -rf "/etc/supervisor/conf.d/${PROJECT_NAME}.conf"
+sudo cat >> "/etc/supervisor/conf.d/${PROJECT_NAME}.conf" <<EOF
+[program:${PROJECT_NAME}]
+command=${GUNICORN_SCRIPT}
 user = root
-stdout_logfile = /srv/${PROJECT_NAME}/logs/gunicorn-supervisor.log
-redirect_stderr = true
+stdout_logfile = "${HOSTING_DIR}/logs/gunicorn-supervisor.log"
+redirect_stderror = true
 EOF
 
 sudo supervisorctl reread
 sudo supervisorctl update
 
-echo "  "
+echo "	"
 echo "Setting up nginx"
+echo "Saving nginx configuration at /etc/nginx/sites-available/${PROJECT_NAME}"
+sudo rm -rf /etc/nginx/sites-available/${PROJECT_NAME}
+sudo rm -rf /etc/nginx/sites-enabled/${PROJECT_NAME}
+touch /etc/nginx/sites-available/${PROJECT_NAME}
 
-sudo rm -rf /etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf
-touch /etc/nginx/sites-enabled/${PROJECT_NAME}.nginxconf
-
-sudo cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<EOF
-
+sudo cat >> /etc/nginx/sites-available/${PROJECT_NAME} <<EOF
 upstream ${PROJECT_NAME}_app_server {
-  server unix:/srv/${PROJECT_NAME}/run/gunicorn.sock fail_timeout=0;
+	server unix:${HOSTING_DIR}/run/gunicorn.sock fail_timeout=0;
 }
 
-server {
 
-	listen $HOST_PORT;
-	server_name $HOST_IP;
+server {
+	listen ${HOST_PORT};
+	server_name ${HOST_IP};
 	
 	client_max_body_size 4G;
 	
-	access_log /srv/${PROJECT_NAME}/logs/nginx-access.log;
-	error_log /srv/${PROJECT_NAME}/logs/nginx-error.log;
+	access_log ${HOSTING_DIR}/logs/nginx-access.log;
+	error_log ${HOSTING_DIR}/logs/nginx-error.log;
 	
 	location /static/ {
-		alias	/srv/$PROJECT_NAME/$PROJECT_NAME/static/;
+		alias	$PROJECT_DIR/static/;
 	}
 	
 	location /media/ {
-		alias	/srv/$PROJECT_NAME/$PROJECT_NAME/media;
+		alias	$PROJECT_DIR/media;
 	}
 EOF
-
-cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<\EOF
-
+cat >> /etc/nginx/sites-available/$PROJECT_NAME <<\EOF
 	location / {
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header Host $http_host;
-
           proxy_redirect off;
         if (!-f $request_filename) {
 EOF
 
-cat >> /etc/nginx/sites-enabled/$PROJECT_NAME.nginxconf <<EOF
-
+cat >> /etc/nginx/sites-available/$PROJECT_NAME <<EOF
             proxy_pass http://${PROJECT_NAME}_app_server;
             break;
         }
     }
-
     # Error pages
     error_page 500 502 503 504 /500.html;
     location = /500.html {
-        root ${SCRIPT_PATH}/static/;
-    }
+        root ${PROJECT_DIR}/static/;
+	    }
 }
-
 EOF
 
-echo "  "
-echo "Finishing up..."
+sudo ln -s /etc/nginx/sites-available/${PROJECT_NAME} /etc/nginx/sites-enabled/
 
-sudo service nginx restart
-sudo service supervisor restart
+sudo nginx -s reload
+sudo nginx -s reopen
+sudo supervisorctl status $PROJECT_NAME
 
-echo "  "
-echo "Your django project is online on ${HOST_IP}:${HOST_PORT}"
+
+echo "Your project is up and running at ${HOST_IP}:${HOST_PORT}"
+
+
 
