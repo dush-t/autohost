@@ -1,14 +1,15 @@
 #!/bin/bash
 
-export PROJECT_NAME=$1
-export PROJECT_DIR=$2
-export HOST_IP=$3
-export HOST_PORT=$4
+read -p 'Name your project > ' PROJECT_NAME
+read -p 'Enter path of project directory (folder which contains manage.py) > ' PROJECT_DIR
+read -p 'Enter the IP addess from which you want to host your app (localhost recommended for testing) > ' HOST_IP
+read -p 'Enter the port you want to serve from > ' HOST_PORT
+read -p 'Enter the path of the location where you want to store the hosting data (a new directory will be made there) > ' HOSTING_DIR_BASE
 
 echo "Running autohost on ${PROJECT_NAME}..."
 
 #------
-HOSTING_DIR="/autohost/${PROJECT_NAME}_hostingdata"
+HOSTING_DIR="${HOSTING_DIR_BASE}/${PROJECT_NAME}_hostingdata"
 echo "Saving hosting data in ${HOSTING_DIR}"
 
 sudo rm -rf $HOSTING_DIR
@@ -17,6 +18,7 @@ sudo mkdir "${HOSTING_DIR}/logs"
 sudo touch "$HOSTING_DIR/logs/gunicorn-supervisor.log"
 sudo touch "$HOSTING_DIR/logs/nginx-access.log"
 sudo touch "$HOSTING_DIR/logs/nginx-error.log"
+sudo chmod -R 777 ${HOSTING_DIR}
 
 #------
 echo "Setting up Gunicorn..."
@@ -94,7 +96,7 @@ sudo cat >> "/etc/supervisor/conf.d/${PROJECT_NAME}.conf" <<EOF
 [program:${PROJECT_NAME}]
 command=${GUNICORN_SCRIPT}
 user = root
-stdout_logfile = "${HOSTING_DIR}/logs/gunicorn-supervisor.log"
+stdout_logfile = ${HOSTING_DIR}/logs/gunicorn-supervisor.log
 redirect_stderror = true
 EOF
 
