@@ -6,6 +6,7 @@ read -p 'Enter the path to the root directory of your project (the folder that c
 read -p 'What would you like to call this project? > ' PROJECT_NAME
 read -p 'Enter the port on which your nodejs app listens > ' HOST_PORT
 read -p 'Specify the directory where you want to store your mongodb data > ' DATABASE_DIRECTORY
+read -p 'Enter the path of the file containing your environment variables, if any' ENV_FILE_PATH
 
 echo " "
 echo "Installing Docker..."
@@ -61,6 +62,8 @@ version: "2"
 services:
   app:
     container_name: ${PROJECT_NAME}
+    env_file:
+      - ${ENV_FILE_PATH}
     restart: always
     build: .
     ports:
